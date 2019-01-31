@@ -1,3 +1,37 @@
 #filters .card {
     max-width: 30rem;
 }
+
+table {
+    width: 100%;
+}
+
+thead, tbody, tr, td, th { display: block; }
+
+tr:after {
+    content: ' ';
+    display: block;
+    visibility: hidden;
+    clear: both;
+}
+
+thead th {
+    /*height: 30px;*/
+
+    /*text-align: left;*/
+}
+
+tbody {
+    /* https://stackoverflow.com/questions/7357818/how-can-an-html-element-fill-out-100-of-the-remaining-screen-height-using-css */
+    height: 80vh;
+    overflow-y: auto;
+}
+
+thead {
+    /* fallback */
+}
+
+tbody td, thead th {
+    width: 33.33333%;
+    float: left;
+}
