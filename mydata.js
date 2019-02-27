@@ -3,7 +3,14 @@
  */
 
 // todo
-// design useful filters
+// filter by tags
+// filter by unit
+// compare everything to > select one (drop down list probably, or checkboxes next to rows), then change unit col to name of thing
+// options - unit conversions and display
+// options - differences, colours
+// options - bar behind value, or row, representing relation to min/max values
+// subtitle/description - name: Jupiter, sub: radius    OR name: Jupiter's radius, sub: largest planet in solar system
+
 // check out table sorting, any libraries I may want to use
 // HTML mock up filters, then implement js
 // may need https://mdbootstrap.com/
@@ -20,7 +27,8 @@ var ID_TAGS = 'tags'; // where to create tags checkbox filters
 
 var DATA = null; // global for data, assigned in showInfo once read in
 var TABLETOP = null; // tabletop object for data, assigned in showInfo once read in
-var TAGS = []; // populated after data read in
+var TAGS = {}; // {name:state} populated after data read in cleanData()
+var TAG_NAMES = []; // just the names of tags, populated at same time and in same order as TAGS
 var UNITS = {
     length : ['m', 'km', 'ft'],
     mass : ['kg'],
@@ -46,74 +54,104 @@ function init() {
 
     Tabletop.init({
         key: publicSpreadsheetUrl,
-        callback: showInfo,
+        callback: initData,
         simpleSheet: true
     });
     // DON'T PUT ANYTHING HERE THAT NEEDS THE TABLE TO HAVE BEEN READ IN
 }
 
-function showInfo(data, tabletop) {
+function initData(data, tabletop) {
+    // save data and tabletop globally
     DATA = data;
     TABLETOP = tabletop;
+    cleanData();
+    createTags();
+    createTable();
+}
 
-    // process data in good format
-    for (var i in data) {
-        var row = data[i];
+function cleanData() {
+    // call before createTags() otherwise TAGS will be an empty array
+    for (var i in DATA) {
+        var row = DATA[i];
         row.number = parseFloat(row.value) * Math.pow(10, parseFloat(row.mag));
-        addToTags(readTags(row.tags));
+        row.tags = readTags(row.tags);
+        addToTags(row.tags);
     }
+}
+
+function createTable(opt) {
+    // goal: pass in only the options that are changing
+
+    clearTable();
+
+    var i, row;
     // create table rows
-    for (i=0; i<data.length; i++) {
-        row = data[i];
+    for (i=0; i<DATA.length; i++) {
+        row = DATA[i];
+        //console.log(row.name, shouldShow(row.tags));
+        if (!shouldShow(row.tags)) {
+            continue;
+        }
         createTableRow(null, ID_TABLE, [
-            row.name,
+            capitalise(row.name),
             row.number,
             row.unit
         ]);
-        if (i < data.length - 1) {
-            createTableDiffRow(ID_TABLE, [
-                '',
-                'x' + roundToSigFig(
-                    data[i+1].number / data[i].number,
-                    2
-                )*100 + '%',
-                ''
-            ]);
-        }
+        // create difference rows
+        //if (i < DATA.length - 1) {
+        //    createTableDiffRow(ID_TABLE, [
+        //        '',
+        //        '&#8681; &#8659; &#8711; x' + roundToSigFig(
+        //            DATA[i+1].number / DATA[i].number,
+        //            2
+        //        )*100 + '%',
+        //        ''
+        //    ]);
+        //}
     }
+}
 
-    createTags();
+function clearTable() {
+    $('#'+ID_TABLE).find('tbody').empty();
 }
 
 function readTags(tags) {
     // tags a string of comma separate tags and converts to a list
     tags = tags.split(',');
+    var newTags = [];
     for (var i in tags) {
-        tags[i] = capitalise(tags[i]);
+        var t = capitalise(tags[i].trim());
+        if (t != '') {
+            newTags.push(t);
+        }
     }
-    return tags;
+    return newTags;
 }
 
 function capitalise(text) {
     // replace beginning of word with capital
-    return text.replace(/\b\w/g, function(l){ return l.toUpperCase()});
+    // ?! looks ahead, and matching anything not \s
+    return text.replace(/(\b[a-z](?!\s))/g, function(x){ return x.toUpperCase()});
 }
 
 function addToTags(newTags) {
     //console.log('newtags', newTags, typeof(newTags));
     for (var i in newTags) {
-        if (TAGS.indexOf(newTags[i]) == -1) {
-            TAGS.push(newTags[i]);
+        var t = newTags[i];
+        //if (TAG_NAMES.indexOf(t) == -1) {
+        if (TAGS[t] == undefined) {
+            TAGS[t] = true;
+            TAG_NAMES.push(t)
         }
     }
 }
 
 function createTags() {
+    // call cleanData() first to read in all tags
     var html = [];
     for (var i in TAGS) {
-        console.log(i, TAGS[i]);
-        var tag = TAGS[i];
-        var id = 'toggle'+tag;
+        var tag = i;
+        var id = 'tag'+tag;
         html = html.concat([
             '<div class="custom-control custom-checkbox">',
             '<input type="checkbox" class="custom-control-input" id="'+id+'" checked="">',
@@ -122,6 +160,32 @@ function createTags() {
         ])
     }
     $('#'+ID_TAGS).append($(html.join('')))
+}
+
+function shouldShow(tags) {
+    // using stored state of filters
+    for (var i in TAGS) {
+        if (TAGS[i]) {
+            for (var j in tags) {
+                if (i == tags[j]) {
+                    return true;
+                }
+            }
+        }
+    }
+    // by reading the states of the html
+    //var checked;
+    //for (var i in TAG_NAMES) {
+    //    checked = $('#tag'+TAG_NAMES[i]).is(':checked');
+    //    if (checked) {
+    //        for (var j in tags) {
+    //            if (TAG_NAMES[i] == tags[j]) {
+    //                return true;
+    //            }
+    //        }
+    //    }
+    //}
+    return false;
 }
 
 function createTableHeaders(id, headers) {
@@ -163,3 +227,13 @@ function createTableDiffRow(parent, data) {
         );
     }
 }
+
+$(document).on('change', '[type=checkbox]', function() {
+    if (this.id.indexOf('tag') == 0 ) {
+        var $this = $('#'+this.id);
+        var label = $this.next().text();
+        var checked = $this.is(':checked');
+        TAGS[label] = checked;
+        createTable();
+    }
+});
