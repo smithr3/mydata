@@ -2,6 +2,16 @@
     max-width: 30rem;
 }
 
+
+label {
+    -moz-user-select: none;
+    user-select: none;
+}
+
+/*
+Fixed/frozen table header stuff.
+*/
+
 table {
     width: 100%;
 }

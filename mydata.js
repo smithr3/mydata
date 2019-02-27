@@ -3,13 +3,15 @@
  */
 
 // todo
-// filter by tags
-// filter by unit
-// compare everything to > select one (drop down list probably, or checkboxes next to rows), then change unit col to name of thing
-// options - unit conversions and display
+// search
+// sort asc/desc
+// update diff to work
 // options - differences, colours
+// options - unit conversions and display
+// compare everything to > select one (drop down list probably, or checkboxes next to rows), then change unit col to name of thing
 // options - bar behind value, or row, representing relation to min/max values
 // subtitle/description - name: Jupiter, sub: radius    OR name: Jupiter's radius, sub: largest planet in solar system
+// formatting units with something. mathjax? katex?
 
 // check out table sorting, any libraries I may want to use
 // HTML mock up filters, then implement js
@@ -22,18 +24,27 @@ window.addEventListener('DOMContentLoaded', init);
 ***********************************************************************************************************************/
 var publicSpreadsheetUrl = 'https://docs.google.com/spreadsheets/d/1ht99t3Ok4m9FB42giTvz3qSi9nZGq1jYMpKaS4DvDEg/edit?usp=sharing';
 var ID_TABLE = 'table0'; // main table
-var ID_FILTERS = 'filters';
+var ID_UNITS = 'units'; // where to create units checkbox filters
 var ID_TAGS = 'tags'; // where to create tags checkbox filters
 
 var DATA = null; // global for data, assigned in showInfo once read in
 var TABLETOP = null; // tabletop object for data, assigned in showInfo once read in
 var TAGS = {}; // {name:state} populated after data read in cleanData()
 var TAG_NAMES = []; // just the names of tags, populated at same time and in same order as TAGS
-var UNITS = {
+var UNITS = { // maps unit to dimension
+    unitless : [''],
     length : ['m', 'km', 'ft'],
     mass : ['kg'],
-    speed : ['m/s', 'kph', 'km/h']
+    speed : ['m/s', 'kph', 'km/h'],
+    area : ['km^2'],
+    perArea : ['/km^2'],
+    temperature : ['C', 'K'],
+    energy : ['J']
 };
+var UNITS_STATE = {}; // {mass:true, ...} is corresponding unit checkbox checked, generated from UNITS
+for (var i in UNITS) {
+    UNITS_STATE[i] = true;
+}
 
 
 //var $FiltersBody = $('#'+ID_FILTERS).find('div.card').find('div.card-body');
@@ -66,6 +77,7 @@ function initData(data, tabletop) {
     TABLETOP = tabletop;
     cleanData();
     createTags();
+    createUnits();
     createTable();
 }
 
@@ -88,8 +100,7 @@ function createTable(opt) {
     // create table rows
     for (i=0; i<DATA.length; i++) {
         row = DATA[i];
-        //console.log(row.name, shouldShow(row.tags));
-        if (!shouldShow(row.tags)) {
+        if (!shouldShow(row.tags, row.unit)) {
             continue;
         }
         createTableRow(null, ID_TABLE, [
@@ -152,21 +163,49 @@ function createTags() {
     for (var i in TAGS) {
         var tag = i;
         var id = 'tag'+tag;
-        html = html.concat([
-            '<div class="custom-control custom-checkbox">',
-            '<input type="checkbox" class="custom-control-input" id="'+id+'" checked="">',
-            '<label class="custom-control-label" for="'+id+'">'+tag+'</label>',
-            '</div>'
-        ])
+        html.push(createCheckbox(id, tag, true)); // note setting false won't update DOM because TAGS isn't updated
     }
     $('#'+ID_TAGS).append($(html.join('')))
 }
 
-function shouldShow(tags) {
+function createUnits() {
+    var html = [];
+    for (var i in UNITS) {
+        var id = 'unit' + i;
+        var label = i;
+        html.push(createCheckbox(id, label, true));
+    }
+    $('#'+ID_UNITS).append($(html.join('')))
+}
+
+function shouldShow(tags, unit) {
+    // unit MUST be selected, and ONE of the rows tags must be selected
+    var i, j;
+    var dim = null;
+    // first map row.unit to a dimension (eg. hm/h to speed)
+    for (i in UNITS) {
+        for (j in UNITS[i]) { // thru list of ['m/s', 'km/h', ...]
+            if (unit == UNITS[i][j]) {
+                dim = i; // eg. 'speed'
+                break;
+            }
+        }
+        if (dim != null) {
+            break;
+        }
+    }
+    if (dim == null) {
+        alert("Couldn't match "+unit+" to a dimension.");
+    }
+    // if that unit is not selected, don't show, otherwise continue and check tags
+    if (!UNITS_STATE[dim]) {
+        return false;
+    }
+    // if a single tag from 'tags' is selected, then show row
     // using stored state of filters
-    for (var i in TAGS) {
+    for (i in TAGS) {
         if (TAGS[i]) {
-            for (var j in tags) {
+            for (j in tags) {
                 if (i == tags[j]) {
                     return true;
                 }
@@ -186,6 +225,19 @@ function shouldShow(tags) {
     //    }
     //}
     return false;
+}
+
+function createCheckbox(id, label, checked) {
+    var c = '';
+    if (checked) {
+        c = 'checked=""';
+    }
+    return [
+        '<div class="custom-control custom-checkbox">',
+        '<input type="checkbox" class="custom-control-input" id="'+id+'" '+c+'>',
+        '<label class="custom-control-label" for="'+id+'">'+label+'</label>',
+        '</div>'
+    ].join('');
 }
 
 function createTableHeaders(id, headers) {
@@ -228,12 +280,55 @@ function createTableDiffRow(parent, data) {
     }
 }
 
+function getCheckbox(id) {
+    // get checked state of a checkbox with the given id, and return it's label
+    var $this = $('#'+id);
+    var label = $this.next().text();
+    var checked = $this.is(':checked');
+    return {
+        label : label,
+        checked : checked
+    }
+}
+
 $(document).on('change', '[type=checkbox]', function() {
-    if (this.id.indexOf('tag') == 0 ) {
-        var $this = $('#'+this.id);
-        var label = $this.next().text();
-        var checked = $this.is(':checked');
-        TAGS[label] = checked;
+    var id = this.id;
+    var box;
+    if (id.indexOf('tag') == 0 ) {
+        box = getCheckbox(id);
+        TAGS[box.label] = box.checked;
+        createTable();
+    } else if (id.indexOf('unit') == 0) {
+        box = getCheckbox(id);
+        UNITS_STATE[box.label] = box.checked;
         createTable();
     }
 });
+
+//$(document).ready(function() {
+//    $('label').on('click', function() {
+//        console.log($(this));
+//    });
+//});
+
+// mouse down state tracking
+var mouseDown = 0;
+document.body.onmousedown = function() {
+    mouseDown = 1;
+};
+document.body.onmouseup = function() {
+    mouseDown = 0;
+};
+
+$(document).on('mouseenter', 'label', function() {
+    // allows drag toggling of checkboxes
+    // todo instead of inverting, set all states to same as first
+    // todo inverting of intended on first checkbox if click-drag started inside it
+    if (mouseDown) {
+        var $box = $(this).prev();
+        var current = $box.prop('checked');
+        $box.prop('checked', !current); // doesn't fire events
+        $box.trigger('change');
+    }
+});
+
