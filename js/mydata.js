@@ -3,8 +3,11 @@
  */
 
 // todo
-// search
-// sort asc/desc
+// search           https://www.w3schools.com/howto/howto_js_filter_table.asp
+// sort asc/desc    https://www.w3schools.com/howto/howto_js_sort_table.asp
+//      or just use https://mdbootstrap.com/docs/jquery/tables/sort/
+//          from    https://mdbootstrap.com/docs/jquery/getting-started/download/
+//      consider row differences, will it be harder or the same to implement?
 // update diff to work
 // options - differences, colours
 // options - unit conversions and display
@@ -12,10 +15,6 @@
 // options - bar behind value, or row, representing relation to min/max values
 // subtitle/description - name: Jupiter, sub: radius    OR name: Jupiter's radius, sub: largest planet in solar system
 // formatting units with something. mathjax? katex?
-
-// check out table sorting, any libraries I may want to use
-// HTML mock up filters, then implement js
-// may need https://mdbootstrap.com/
 
 window.addEventListener('DOMContentLoaded', init);
 

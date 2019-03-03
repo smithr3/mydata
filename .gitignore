@@ -5,3 +5,6 @@ __pycache__/
 
 # PyCharm
 .idea/
+
+# MDB example
+MDB-Free_4.7.3/
