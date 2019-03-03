@@ -3,11 +3,6 @@
  */
 
 // todo
-// search           https://www.w3schools.com/howto/howto_js_filter_table.asp
-// sort asc/desc    https://www.w3schools.com/howto/howto_js_sort_table.asp
-//      or just use https://mdbootstrap.com/docs/jquery/tables/sort/
-//          from    https://mdbootstrap.com/docs/jquery/getting-started/download/
-//      consider row differences, will it be harder or the same to implement?
 // update diff to work
 // options - differences, colours
 // options - unit conversions and display
@@ -45,9 +40,6 @@ for (var i in UNITS) {
     UNITS_STATE[i] = true;
 }
 
-
-//var $FiltersBody = $('#'+ID_FILTERS).find('div.card').find('div.card-body');
-
 /***********************************************************************************************************************
         MATHS FUNCTIONS
 ***********************************************************************************************************************/
@@ -78,6 +70,14 @@ function initData(data, tabletop) {
     createTags();
     createUnits();
     createTable();
+
+    $(document).ready(function () {
+        // https://mdbootstrap.com/docs/jquery/tables/scroll/
+        $('#'+ID_TABLE).DataTable(); // todo want to add scrolling, but can't since recreating breaks init process
+        // https://datatables.net/manual/tech-notes/3
+
+        $('.dataTables_length').addClass('bs-select');
+    });
 }
 
 function cleanData() {
@@ -92,6 +92,10 @@ function cleanData() {
 
 function createTable(opt) {
     // goal: pass in only the options that are changing
+
+    // destroy table to update (I can't make .draw() work)
+    var $table = $('#'+ID_TABLE);
+    $table.DataTable().destroy();
 
     clearTable();
 
@@ -119,6 +123,11 @@ function createTable(opt) {
         //    ]);
         //}
     }
+
+    // recreate table
+    $table.DataTable();
+
+
 }
 
 function clearTable() {
@@ -245,8 +254,12 @@ function createTableHeaders(id, headers) {
     var $id = $('#'+id);
     $id.find('thead').append($('<tr>'));
     var headerRow = $id.find('thead').find('tr').last();
+    var footerRow = $id.find('tfoot').find('tr').last();
     for (var i in headers) {
         headerRow.append($('<th>')
+            .text(headers[i])
+        );
+        footerRow.append($('<th>')
             .text(headers[i])
         );
     }
@@ -262,7 +275,7 @@ function createTableRow(id, parent, data) {
     }
     var row = $parent.find('tbody').find('tr').last();
     for (var i in data) {
-        row.append($('<td class="filterable-cell">')
+        row.append($('<td>')
             .append(data[i])
         );
     }
@@ -293,22 +306,16 @@ function getCheckbox(id) {
 $(document).on('change', '[type=checkbox]', function() {
     var id = this.id;
     var box;
-    if (id.indexOf('tag') == 0 ) {
+    if (id.indexOf('tag') == 0 ) { // id starts with tag
         box = getCheckbox(id);
         TAGS[box.label] = box.checked;
         createTable();
-    } else if (id.indexOf('unit') == 0) {
+    } else if (id.indexOf('unit') == 0) { // id starts with unit
         box = getCheckbox(id);
         UNITS_STATE[box.label] = box.checked;
         createTable();
     }
 });
-
-//$(document).ready(function() {
-//    $('label').on('click', function() {
-//        console.log($(this));
-//    });
-//});
 
 // mouse down state tracking
 var mouseDown = 0;
